@@ -6,10 +6,15 @@ Supported providers:
 
 - OpenAI Audio Transcriptions
 - Tencent Cloud recording file recognition (`CreateRecTask` with local base64 audio upload)
+- iFlytek recording file transcription (`/v2/upload` + `/v2/getResult`)
 
 OpenAI normal transcription can use `gpt-4o-mini-transcribe` for lower cost or `gpt-4o-transcribe` for higher accuracy. Speaker diarization uses `gpt-4o-transcribe-diarize`.
 
 Tencent Cloud local upload uses `SourceType=1`, so the original audio file must be no larger than 5 MB.
+
+iFlytek uses APPID, APIKey, and APISecret from the "录音文件转写大模型" console. In the API documentation, APIKey is also called `accessKeyId`, and APISecret is also called `accessKeySecret`. APISecret is signed as the original UTF-8 string; do not Base64 decode it. The default language mode is `autodialect`; `autominor` requires manual enablement from iFlytek.
+
+The shared speaker diarization setting is used by supported providers. For iFlytek, enabling it sends `roleType=1` for general role separation, and the optional speaker count is sent as `roleNum` when it is between 1 and 10.
 
 ## 发布离线安装包
 
@@ -23,6 +28,18 @@ npm run release
 
 ```text
 dist/obsidian-local-audio-plus-<version>.zip
+```
+
+`<version>` 来自当前仓库最新的 Git tag，例如 `v1.0.0` 会生成：
+
+```text
+dist/obsidian-local-audio-plus-1.0.0.zip
+```
+
+发布前请先创建 tag：
+
+```bash
+git tag v1.0.0
 ```
 
 zip 内结构如下：

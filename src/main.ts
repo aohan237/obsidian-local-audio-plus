@@ -312,15 +312,18 @@ function mergeSettings(data: unknown): LocalAudioPlusSettings {
     tencent: {
       ...DEFAULT_SETTINGS.tencent,
       ...(saved.tencent ?? {})
+    },
+    xunfei: {
+      ...DEFAULT_SETTINGS.xunfei,
+      ...(saved.xunfei ?? {}),
+      language: normalizeXunfeiLanguage(asRecord(saved.xunfei).language)
     }
   };
-  delete (settings as Record<string, unknown>).xunfei;
   return settings;
 }
 
 function normalizeProvider(value: unknown): LocalAudioPlusSettings["provider"] {
-  if (value === "openai" || value === "tencent") return value;
-  if (value === "xunfei") return "tencent";
+  if (value === "openai" || value === "tencent" || value === "xunfei") return value;
   return DEFAULT_SETTINGS.provider;
 }
 
@@ -332,6 +335,11 @@ function normalizeOpenAIUploadFormat(value: unknown): LocalAudioPlusSettings["op
 function normalizeTranscriptFormatting(value: unknown): LocalAudioPlusSettings["transcriptFormatting"] {
   if (value === "autoParagraphs" || value === "plain") return value;
   return DEFAULT_SETTINGS.transcriptFormatting;
+}
+
+function normalizeXunfeiLanguage(value: unknown): LocalAudioPlusSettings["xunfei"]["language"] {
+  if (value === "autodialect" || value === "autominor") return value;
+  return DEFAULT_SETTINGS.xunfei.language;
 }
 
 function asRecord(value: unknown): Record<string, unknown> {

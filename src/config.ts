@@ -32,9 +32,10 @@ export const OPENAI_TRANSCRIPTION_MODELS = [
   }
 ];
 
-export type ProviderId = "openai" | "tencent";
+export type ProviderId = "openai" | "tencent" | "xunfei";
 export type OpenAIUploadFormat = "base64" | "formData";
 export type TranscriptFormatting = "autoParagraphs" | "plain";
+export type XunfeiLanguage = "autodialect" | "autominor";
 
 export interface ProxySettings {
   enabled: boolean;
@@ -63,6 +64,16 @@ export interface TencentSettings {
   hotwordList: string;
 }
 
+export interface XunfeiSettings {
+  appId: string;
+  apiKey: string;
+  apiSecret: string;
+  endpoint: string;
+  language: XunfeiLanguage;
+  pollIntervalSeconds: number;
+  timeoutSeconds: number;
+}
+
 export interface LocalAudioPlusSettings {
   provider: ProviderId;
   automaticProcessing: boolean;
@@ -78,6 +89,7 @@ export interface LocalAudioPlusSettings {
   proxy: ProxySettings;
   openai: OpenAISettings;
   tencent: TencentSettings;
+  xunfei: XunfeiSettings;
 }
 
 export const DEFAULT_SETTINGS: LocalAudioPlusSettings = {
@@ -115,5 +127,14 @@ export const DEFAULT_SETTINGS: LocalAudioPlusSettings = {
     pollIntervalSeconds: 15,
     timeoutSeconds: 10800,
     hotwordList: ""
+  },
+  xunfei: {
+    appId: "",
+    apiKey: "",
+    apiSecret: "",
+    endpoint: "https://office-api-ist-dx.iflyaisol.com",
+    language: "autodialect",
+    pollIntervalSeconds: 15,
+    timeoutSeconds: 10800
   }
 };

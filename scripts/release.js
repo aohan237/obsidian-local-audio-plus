@@ -7,7 +7,7 @@ const pkg = require(path.join(root, "package.json"));
 const manifest = require(path.join(root, "manifest.json"));
 
 const pluginId = manifest.id || pkg.name;
-const version = pkg.version;
+const version = readGitTagVersion();
 const distDir = path.join(root, "dist");
 const packageDir = path.join(distDir, pluginId);
 const zipName = `${pluginId}-${version}.zip`;
@@ -25,7 +25,11 @@ for (const file of requiredFiles) {
   if (!fs.existsSync(source)) {
     throw new Error(`Missing build artifact: ${source}`);
   }
-  fs.copyFileSync(source, path.join(packageDir, file));
+  const target = path.join(packageDir, file);
+  fs.copyFileSync(source, target);
+  if (file === "manifest.json") {
+    writeManifestVersion(target, version);
+  }
 }
 
 for (const file of releaseFiles) {
@@ -44,6 +48,32 @@ fs.rmSync(zipPath, { force: true });
 run("zip", ["-r", zipPath, pluginId], { cwd: distDir });
 
 console.log(`Release package created: ${path.relative(root, zipPath)}`);
+console.log(`Release version: ${version}`);
+
+function readGitTagVersion() {
+  const result = spawnSync("git", ["describe", "--tags", "--abbrev=0"], {
+    cwd: root,
+    encoding: "utf8",
+    shell: process.platform === "win32"
+  });
+
+  if (result.status !== 0) {
+    throw new Error("Could not read latest Git tag. Create a tag like v1.0.0 before running npm run release.");
+  }
+
+  const tag = result.stdout.trim();
+  const version = tag.replace(/^v/i, "");
+  if (!/^\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?$/.test(version)) {
+    throw new Error(`Latest Git tag must be a semantic version like v1.0.0. Got: ${tag}`);
+  }
+  return version;
+}
+
+function writeManifestVersion(manifestPath, version) {
+  const packagedManifest = JSON.parse(fs.readFileSync(manifestPath, "utf8"));
+  packagedManifest.version = version;
+  fs.writeFileSync(manifestPath, `${JSON.stringify(packagedManifest, null, 2)}\n`);
+}
 
 function run(command, args, options = {}) {
   const result = spawnSync(command, args, {

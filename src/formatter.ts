@@ -97,5 +97,6 @@ function formatRange(startMs?: number, endMs?: number): string {
 function providerName(provider: string): string {
   if (provider === "openai") return "OpenAI";
   if (provider === "tencent") return "Tencent Cloud ASR";
+  if (provider === "xunfei") return "iFlytek ASR";
   return provider;
 }

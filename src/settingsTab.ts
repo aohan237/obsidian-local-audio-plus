@@ -21,6 +21,7 @@ export class LocalAudioPlusSettingTab extends PluginSettingTab {
         dropdown
           .addOption("openai", t("settings.provider.openai"))
           .addOption("tencent", t("settings.provider.tencent"))
+          .addOption("xunfei", t("settings.provider.xunfei"))
           .setValue(this.plugin.settings.provider)
           .onChange(async (value) => {
             this.plugin.settings.provider = value as typeof this.plugin.settings.provider;
@@ -160,6 +161,7 @@ export class LocalAudioPlusSettingTab extends PluginSettingTab {
     this.displayProxySettings(containerEl);
     this.displayOpenAISettings(containerEl);
     this.displayTencentSettings(containerEl);
+    this.displayXunfeiSettings(containerEl);
   }
 
   private displayProxySettings(containerEl: HTMLElement): void {
@@ -405,6 +407,99 @@ export class LocalAudioPlusSettingTab extends PluginSettingTab {
             const parsed = parsePositiveInteger(value, 30, 21600);
             if (parsed === null) return;
             this.plugin.settings.tencent.timeoutSeconds = parsed;
+            await this.plugin.saveSettings();
+          })
+      );
+  }
+
+  private displayXunfeiSettings(containerEl: HTMLElement): void {
+    containerEl.createEl("h3", { text: t("settings.xunfei.title") });
+
+    new Setting(containerEl)
+      .setName(t("settings.xunfei.appId.name"))
+      .addText((text) =>
+        text
+          .setValue(this.plugin.settings.xunfei.appId)
+          .onChange(async (value) => {
+            this.plugin.settings.xunfei.appId = value;
+            await this.plugin.saveSettings();
+          })
+      );
+
+    new Setting(containerEl)
+      .setName(t("settings.xunfei.apiKey.name"))
+      .setDesc(t("settings.xunfei.apiKey.desc"))
+      .addText((text) =>
+        text
+          .setValue(this.plugin.settings.xunfei.apiKey)
+          .onChange(async (value) => {
+            this.plugin.settings.xunfei.apiKey = value;
+            await this.plugin.saveSettings();
+          })
+      );
+
+    new Setting(containerEl)
+      .setName(t("settings.xunfei.apiSecret.name"))
+      .setDesc(t("settings.xunfei.apiSecret.desc"))
+      .addText((text) => {
+        text.inputEl.type = "password";
+        text
+          .setValue(this.plugin.settings.xunfei.apiSecret)
+          .onChange(async (value) => {
+            this.plugin.settings.xunfei.apiSecret = value;
+            await this.plugin.saveSettings();
+          });
+      });
+
+    new Setting(containerEl)
+      .setName(t("settings.xunfei.endpoint.name"))
+      .addText((text) =>
+        text
+          .setValue(this.plugin.settings.xunfei.endpoint)
+          .onChange(async (value) => {
+            this.plugin.settings.xunfei.endpoint = value;
+            await this.plugin.saveSettings();
+          })
+      );
+
+    new Setting(containerEl)
+      .setName(t("settings.xunfei.language.name"))
+      .setDesc(t("settings.xunfei.language.desc"))
+      .addDropdown((dropdown) =>
+        dropdown
+          .addOption("autodialect", t("settings.xunfei.language.autodialect"))
+          .addOption("autominor", t("settings.xunfei.language.autominor"))
+          .setValue(this.plugin.settings.xunfei.language)
+          .onChange(async (value) => {
+            this.plugin.settings.xunfei.language = value as typeof this.plugin.settings.xunfei.language;
+            await this.plugin.saveSettings();
+          })
+      );
+
+    new Setting(containerEl)
+      .setName(t("settings.xunfei.pollInterval.name"))
+      .setDesc(t("settings.xunfei.pollInterval.desc"))
+      .addText((text) =>
+        text
+          .setValue(String(this.plugin.settings.xunfei.pollIntervalSeconds))
+          .onChange(async (value) => {
+            const parsed = parsePositiveInteger(value, 3, 3600);
+            if (parsed === null) return;
+            this.plugin.settings.xunfei.pollIntervalSeconds = parsed;
+            await this.plugin.saveSettings();
+          })
+      );
+
+    new Setting(containerEl)
+      .setName(t("settings.xunfei.timeout.name"))
+      .setDesc(t("settings.xunfei.timeout.desc"))
+      .addText((text) =>
+        text
+          .setValue(String(this.plugin.settings.xunfei.timeoutSeconds))
+          .onChange(async (value) => {
+            const parsed = parsePositiveInteger(value, 30, 21600);
+            if (parsed === null) return;
+            this.plugin.settings.xunfei.timeoutSeconds = parsed;
             await this.plugin.saveSettings();
           })
       );
