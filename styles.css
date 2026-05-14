@@ -1,0 +1,8 @@
+.local-audio-plus-setting-warning {
+  color: var(--text-warning);
+}
+
+.local-audio-plus-transcript {
+  border-left: 3px solid var(--interactive-accent);
+  padding-left: 0.75rem;
+}

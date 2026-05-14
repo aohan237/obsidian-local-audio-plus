@@ -1,0 +1,39 @@
+{
+  "name": "obsidian-local-audio-plus",
+  "version": "0.1.0",
+  "description": "Transcribe local audio files referenced in Obsidian notes using OpenAI or Tencent Cloud ASR.",
+  "main": "build/main.js",
+  "scripts": {
+    "dev": "rollup --config rollup.config.js -w",
+    "build": "rollup --config rollup.config.js --environment BUILD:production",
+    "release": "node scripts/release.js",
+    "version": "node -e \"const fs=require('fs'); const pkg=require('./package.json'); const manifest=require('./manifest.json'); manifest.version=pkg.version; fs.writeFileSync('manifest.json', JSON.stringify(manifest,null,2)+'\\n');\""
+  },
+  "keywords": [
+    "obsidian",
+    "audio",
+    "transcription",
+    "openai",
+    "tencent-cloud"
+  ],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "@rollup/plugin-commonjs": "^25.0.0",
+    "@rollup/plugin-node-resolve": "^15.2.3",
+    "@rollup/plugin-typescript": "^11.1.6",
+    "@types/node": "^20.11.30",
+    "obsidian": "^1.5.12",
+    "rollup": "^3.29.4",
+    "tslib": "^2.6.2",
+    "typescript": "^5.4.2"
+  },
+  "optionalDependencies": {
+    "fsevents": "*"
+  },
+  "dependencies": {
+    "http-proxy-agent": "^7.0.2",
+    "https-proxy-agent": "^7.0.6",
+    "socks-proxy-agent": "^8.0.5"
+  }
+}

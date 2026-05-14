@@ -1,0 +1,44 @@
+# Dependencies
+node_modules/
+.npm/
+.pnpm-store/
+.yarn/
+
+# Build and release artifacts
+build/
+dist/
+*.zip
+*.tgz
+
+# Local development data
+dev_data/
+obsidian-local-images-plus/
+
+# Local agent/workspace metadata
+.agents/
+.codex/
+
+# Obsidian local/runtime data
+.obsidian/
+data.json
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Test and coverage output
+coverage/
+.nyc_output/
+.cache/
+*.tsbuildinfo
+
+# Editor and OS files
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+*.swo
