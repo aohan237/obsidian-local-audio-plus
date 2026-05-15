@@ -18,7 +18,7 @@ README.md
 安装脚本会读取 Obsidian 本地配置，优先选择当前打开的仓库；如果没有找到当前打开的仓库，会选择最近打开的仓库。脚本会把插件复制到：
 
 ```text
-<vault>/.obsidian/plugins/obsidian-local-audio-plus/
+<vault>/.obsidian/plugins/local-audio-plus/
 ```
 
 并把插件 ID 写入：
@@ -31,7 +31,7 @@ README.md
 
 ### Windows PowerShell
 
-在解压后的 `obsidian-local-audio-plus` 文件夹里打开 PowerShell，然后运行：
+在解压后的 `local-audio-plus` 文件夹里打开 PowerShell，然后运行：
 
 ```powershell
 Set-ExecutionPolicy -Scope Process Bypass
@@ -40,7 +40,7 @@ Set-ExecutionPolicy -Scope Process Bypass
 
 ### Linux
 
-在解压后的 `obsidian-local-audio-plus` 文件夹里打开终端，然后运行：
+在解压后的 `local-audio-plus` 文件夹里打开终端，然后运行：
 
 ```bash
 chmod +x ./install.sh
@@ -49,7 +49,7 @@ chmod +x ./install.sh
 
 ## 手动安装
 
-如果自动安装脚本找不到 Obsidian 仓库，可以手动复制整个 `obsidian-local-audio-plus` 文件夹到：
+如果自动安装脚本找不到 Obsidian 仓库，可以手动复制整个 `local-audio-plus` 文件夹到：
 
 ```text
 <vault>/.obsidian/plugins/
@@ -58,7 +58,7 @@ chmod +x ./install.sh
 最终目录应类似：
 
 ```text
-<vault>/.obsidian/plugins/obsidian-local-audio-plus/main.js
-<vault>/.obsidian/plugins/obsidian-local-audio-plus/manifest.json
-<vault>/.obsidian/plugins/obsidian-local-audio-plus/styles.css
+<vault>/.obsidian/plugins/local-audio-plus/main.js
+<vault>/.obsidian/plugins/local-audio-plus/manifest.json
+<vault>/.obsidian/plugins/local-audio-plus/styles.css
 ```

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-PLUGIN_ID="obsidian-local-audio-plus"
+PLUGIN_ID="local-audio-plus"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PLUGIN_FILES=("main.js" "manifest.json" "styles.css")
 

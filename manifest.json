@@ -1,10 +1,9 @@
 {
-  "id": "obsidian-local-audio-plus",
+  "id": "local-audio-plus",
   "name": "Local Audio Plus",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "minAppVersion": "1.5.0",
-  "description": "Scans local audio links in Obsidian notes and inserts transcripts using OpenAI or Tencent Cloud ASR.",
-  "author": "",
-  "authorUrl": "",
+  "description": "Scans local audio links in Obsidian notes and inserts transcripts using OpenAI, Tencent Cloud ASR, or iFlytek ASR.",
+  "author": "linziyan",
   "isDesktopOnly": true
 }

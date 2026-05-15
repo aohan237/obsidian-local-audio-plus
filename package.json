@@ -1,6 +1,6 @@
 {
-  "name": "obsidian-local-audio-plus",
-  "version": "0.1.0",
+  "name": "local-audio-plus",
+  "version": "1.0.0",
   "description": "Transcribe local audio files referenced in Obsidian notes using OpenAI, Tencent Cloud ASR, or iFlytek ASR.",
   "main": "build/main.js",
   "scripts": {
@@ -18,8 +18,8 @@
     "iflytek",
     "xunfei"
   ],
-  "author": "",
-  "license": "MIT",
+  "author": "linziyan",
+  "license": "Apache-2.0",
   "devDependencies": {
     "@rollup/plugin-commonjs": "^25.0.0",
     "@rollup/plugin-node-resolve": "^15.2.3",

@@ -7,7 +7,7 @@ const pkg = require(path.join(root, "package.json"));
 const manifest = require(path.join(root, "manifest.json"));
 
 const pluginId = manifest.id || pkg.name;
-const version = readGitTagVersion();
+const version = readReleaseVersion();
 const distDir = path.join(root, "dist");
 const packageDir = path.join(distDir, pluginId);
 const zipName = `${pluginId}-${version}.zip`;
@@ -17,6 +17,7 @@ const releaseFiles = ["README.md", "install.ps1", "install.sh"];
 
 run("npm", ["run", "build"]);
 
+fs.mkdirSync(distDir, { recursive: true });
 fs.rmSync(packageDir, { recursive: true, force: true });
 fs.mkdirSync(packageDir, { recursive: true });
 
@@ -25,11 +26,14 @@ for (const file of requiredFiles) {
   if (!fs.existsSync(source)) {
     throw new Error(`Missing build artifact: ${source}`);
   }
-  const target = path.join(packageDir, file);
-  fs.copyFileSync(source, target);
+  const releaseTarget = path.join(distDir, file);
+  fs.copyFileSync(source, releaseTarget);
   if (file === "manifest.json") {
-    writeManifestVersion(target, version);
+    writeManifestVersion(releaseTarget, version);
   }
+
+  const target = path.join(packageDir, file);
+  fs.copyFileSync(releaseTarget, target);
 }
 
 for (const file of releaseFiles) {
@@ -48,25 +52,22 @@ fs.rmSync(zipPath, { force: true });
 run("zip", ["-r", zipPath, pluginId], { cwd: distDir });
 
 console.log(`Release package created: ${path.relative(root, zipPath)}`);
+console.log("GitHub release assets created:");
+for (const file of requiredFiles) {
+  console.log(`- ${path.relative(root, path.join(distDir, file))}`);
+}
 console.log(`Release version: ${version}`);
 
-function readGitTagVersion() {
-  const result = spawnSync("git", ["describe", "--tags", "--abbrev=0"], {
-    cwd: root,
-    encoding: "utf8",
-    shell: process.platform === "win32"
-  });
-
-  if (result.status !== 0) {
-    throw new Error("Could not read latest Git tag. Create a tag like v1.0.0 before running npm run release.");
+function readReleaseVersion() {
+  if (pkg.version !== manifest.version) {
+    throw new Error(`package.json version (${pkg.version}) must match manifest.json version (${manifest.version}).`);
   }
 
-  const tag = result.stdout.trim();
-  const version = tag.replace(/^v/i, "");
-  if (!/^\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?$/.test(version)) {
-    throw new Error(`Latest Git tag must be a semantic version like v1.0.0. Got: ${tag}`);
+  if (!/^\d+\.\d+\.\d+$/.test(manifest.version)) {
+    throw new Error(`Release version must use x.y.z format. Got: ${manifest.version}`);
   }
-  return version;
+
+  return manifest.version;
 }
 
 function writeManifestVersion(manifestPath, version) {

@@ -1,6 +1,6 @@
 $ErrorActionPreference = "Stop"
 
-$PluginId = "obsidian-local-audio-plus"
+$PluginId = "local-audio-plus"
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $PluginFiles = @("main.js", "manifest.json", "styles.css")
 
