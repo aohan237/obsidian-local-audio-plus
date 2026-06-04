@@ -38,7 +38,7 @@ Apache License 2.0. See [LICENSE](LICENSE).
 发布前确认：
 
 - `manifest.json`、`package.json` 和 `package-lock.json` 里的版本一致。
-- GitHub release 的 tag 和 `manifest.json` 里的 `version` 完全一致，例如 `1.0.0`。
+- GitHub release 的 tag 和 `manifest.json` 里的 `version` 完全一致，例如 `1.0.1`。
 - 仓库根目录包含 `README.md`、`LICENSE`、`manifest.json` 和源码。
 
 生成发布文件：
@@ -77,16 +77,16 @@ npm run release
 dist/local-audio-plus-<version>.zip
 ```
 
-`<version>` 来自 `manifest.json` 里的版本号，例如 `1.0.0` 会生成：
+`<version>` 来自 `manifest.json` 里的版本号，例如 `1.0.1` 会生成：
 
 ```text
-dist/local-audio-plus-1.0.0.zip
+dist/local-audio-plus-1.0.1.zip
 ```
 
 发布 GitHub release 时请创建与 `manifest.json` 版本完全一致的 tag：
 
 ```bash
-git tag 1.0.0
+git tag 1.0.1
 ```
 
 zip 内结构如下：

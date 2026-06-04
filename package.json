@@ -1,7 +1,7 @@
 {
   "name": "local-audio-plus",
-  "version": "1.0.0",
-  "description": "Transcribe local audio files referenced in Obsidian notes using OpenAI, Tencent Cloud ASR, or iFlytek ASR.",
+  "version": "1.0.1",
+  "description": "Transcribe local audio files referenced in notes using OpenAI, Tencent Cloud ASR, or iFlytek ASR.",
   "main": "build/main.js",
   "scripts": {
     "dev": "rollup --config rollup.config.js -w",
