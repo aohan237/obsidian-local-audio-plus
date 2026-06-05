@@ -1,7 +1,7 @@
 {
   "id": "local-audio-plus",
   "name": "Local Audio Plus",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "minAppVersion": "1.5.0",
   "description": "Scans local audio links in notes and inserts transcripts using OpenAI, Tencent Cloud ASR, or iFlytek ASR.",
   "author": "linziyan",

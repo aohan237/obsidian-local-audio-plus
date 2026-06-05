@@ -83,7 +83,7 @@ function normalizeProxyUrl(rawUrl: string): string {
   return url.toString();
 }
 
-function createProxyAgent(proxy: URL, targetProtocol: string): HttpProxyAgent<string> | HttpsProxyAgent<string> | SocksProxyAgent {
+function createProxyAgent(proxy: URL, targetProtocol: string): HttpProxyAgent | HttpsProxyAgent | SocksProxyAgent {
   if (proxy.protocol === "socks5:" || proxy.protocol === "socks5h:") {
     return new SocksProxyAgent(proxy);
   }
@@ -123,7 +123,9 @@ function responseHeadersToRecord(headers: Record<string, string | string[] | num
 }
 
 function bufferToArrayBuffer(buffer: Buffer): ArrayBuffer {
-  return buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength) as ArrayBuffer;
+  const arrayBuffer = new ArrayBuffer(buffer.byteLength);
+  new Uint8Array(arrayBuffer).set(buffer);
+  return arrayBuffer;
 }
 
 function safeJson(text: string): unknown {

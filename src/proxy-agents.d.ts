@@ -1,11 +1,11 @@
 declare module "http-proxy-agent" {
-  export class HttpProxyAgent<T = string> {
+  export class HttpProxyAgent {
     constructor(proxy: string | URL);
   }
 }
 
 declare module "https-proxy-agent" {
-  export class HttpsProxyAgent<T = string> {
+  export class HttpsProxyAgent {
     constructor(proxy: string | URL);
   }
 }

@@ -1,5 +1,3 @@
-import { getLanguage } from "obsidian";
-
 const en = {
   "settings.title": "Local Audio Plus",
   "settings.provider.name": "Provider",
@@ -173,7 +171,7 @@ const zh: Record<TranslationKey, string> = {
 };
 
 export function t(key: TranslationKey): string {
-  return isChineseLanguage(getLanguage()) ? zh[key] : en[key];
+  return isChineseLanguage(getCurrentLanguage()) ? zh[key] : en[key];
 }
 
 export function openAITranscriptionModelName(modelId: string): string | null {
@@ -184,4 +182,8 @@ export function openAITranscriptionModelName(modelId: string): string | null {
 
 function isChineseLanguage(language: string): boolean {
   return language.toLowerCase().startsWith("zh");
+}
+
+function getCurrentLanguage(): string {
+  return navigator.languages?.[0] ?? navigator.language ?? "en";
 }

@@ -12,7 +12,7 @@ export class LocalAudioPlusSettingTab extends PluginSettingTab {
     const { containerEl } = this;
     containerEl.empty();
 
-    containerEl.createEl("h2", { text: t("settings.title") });
+    new Setting(containerEl).setName(t("settings.title")).setHeading();
 
     new Setting(containerEl)
       .setName(t("settings.provider.name"))
@@ -165,7 +165,7 @@ export class LocalAudioPlusSettingTab extends PluginSettingTab {
   }
 
   private displayProxySettings(containerEl: HTMLElement): void {
-    containerEl.createEl("h3", { text: t("settings.proxy.title") });
+    new Setting(containerEl).setName(t("settings.proxy.title")).setHeading();
 
     new Setting(containerEl)
       .setName(t("settings.proxy.enabled.name"))
@@ -194,7 +194,7 @@ export class LocalAudioPlusSettingTab extends PluginSettingTab {
   }
 
   private displayOpenAISettings(containerEl: HTMLElement): void {
-    containerEl.createEl("h3", { text: "OpenAI" });
+    new Setting(containerEl).setName("OpenAI").setHeading();
 
     new Setting(containerEl)
       .setName(t("settings.openai.apiKey.name"))
@@ -282,7 +282,7 @@ export class LocalAudioPlusSettingTab extends PluginSettingTab {
   }
 
   private displayTencentSettings(containerEl: HTMLElement): void {
-    containerEl.createEl("h3", { text: t("settings.tencent.title") });
+    new Setting(containerEl).setName(t("settings.tencent.title")).setHeading();
 
     new Setting(containerEl)
       .setName(t("settings.tencent.secretId.name"))
@@ -413,7 +413,7 @@ export class LocalAudioPlusSettingTab extends PluginSettingTab {
   }
 
   private displayXunfeiSettings(containerEl: HTMLElement): void {
-    containerEl.createEl("h3", { text: t("settings.xunfei.title") });
+    new Setting(containerEl).setName(t("settings.xunfei.title")).setHeading();
 
     new Setting(containerEl)
       .setName(t("settings.xunfei.appId.name"))
