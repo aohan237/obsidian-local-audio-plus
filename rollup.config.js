@@ -24,7 +24,7 @@ module.exports = {
   input: "src/main.ts",
   output: {
     dir: "build",
-    sourcemap: "inline",
+    sourcemap: isProd ? false : "inline",
     sourcemapExcludeSources: isProd,
     format: "cjs",
     exports: "default",
