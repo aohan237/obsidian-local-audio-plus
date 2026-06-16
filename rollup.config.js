@@ -30,7 +30,7 @@ module.exports = {
     exports: "default",
     banner
   },
-  external: ["obsidian", "crypto"],
+  external: ["obsidian", "crypto", "@codemirror/state", "@codemirror/view"],
   plugins: [
     copyStaticFiles(),
     typescript.default(),

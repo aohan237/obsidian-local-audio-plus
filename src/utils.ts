@@ -133,25 +133,44 @@ export function formatTime(ms?: number): string {
 }
 
 export function findTranscriptBlock(content: string, filePath: string): TranscriptBlock | null {
-  const pattern = new RegExp(
-    `<!--\\s*${MARKER_NAME}:start\\s+([^>]*)-->[\\s\\S]*?<!--\\s*${MARKER_NAME}:end\\s*-->`,
-    "g"
-  );
-
-  for (const match of content.matchAll(pattern)) {
-    const attrs = parseMarkerAttributes(match[1]);
-    if (attrs.file && decodeMarkerValue(attrs.file) === filePath) {
-      return {
-        start: match.index ?? 0,
-        end: (match.index ?? 0) + match[0].length,
-        filePath,
-        hash: attrs.hash,
-        provider: attrs.provider as TranscriptBlock["provider"]
-      };
+  for (const block of findTranscriptBlocks(content)) {
+    if (block.filePath === filePath) {
+      return block;
     }
   }
 
   return null;
+}
+
+export function findTranscriptBlockByHash(content: string, hash: string): TranscriptBlock | null {
+  for (const block of findTranscriptBlocks(content)) {
+    if (block.hash === hash) {
+      return block;
+    }
+  }
+
+  return null;
+}
+
+function findTranscriptBlocks(content: string): TranscriptBlock[] {
+  const pattern = new RegExp(
+    `<!--\\s*${MARKER_NAME}:start\\s+([^>]*)-->[\\s\\S]*?<!--\\s*${MARKER_NAME}:end\\s*-->`,
+    "g"
+  );
+  const blocks: TranscriptBlock[] = [];
+
+  for (const match of content.matchAll(pattern)) {
+    const attrs = parseMarkerAttributes(match[1]);
+    blocks.push({
+      start: match.index ?? 0,
+      end: (match.index ?? 0) + match[0].length,
+      filePath: attrs.file ? decodeMarkerValue(attrs.file) : "",
+      hash: attrs.hash,
+      provider: attrs.provider as TranscriptBlock["provider"]
+    });
+  }
+
+  return blocks;
 }
 
 export function markerStart(filePath: string, hash: string, provider: string): string {

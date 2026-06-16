@@ -16,6 +16,10 @@ export class UniqueQueue<T> {
     this.queue = this.queue.filter((item) => item.value !== value);
   }
 
+  clear(): void {
+    this.queue = [];
+  }
+
   iterationQueue(): T[] {
     const next = new UniqueQueue<T>();
     const iteration: T[] = [];

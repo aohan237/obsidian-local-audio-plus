@@ -1,6 +1,23 @@
-import { MarkdownView, Notice, Plugin, TFile } from "obsidian";
+import { RangeSetBuilder } from "@codemirror/state";
+import { Decoration, DecorationSet, EditorView, ViewPlugin, ViewUpdate, WidgetType } from "@codemirror/view";
+import {
+  editorInfoField,
+  editorLivePreviewField,
+  Editor,
+  MarkdownPostProcessorContext,
+  MarkdownView,
+  Menu,
+  Notice,
+  Plugin,
+  setIcon,
+  setTooltip,
+  TAbstractFile,
+  TFile,
+  WorkspaceLeaf
+} from "obsidian";
 import { APP_TITLE, DEFAULT_SETTINGS, LocalAudioPlusSettings } from "./config";
 import { formatTranscriptBlock } from "./formatter";
+import { t } from "./i18n";
 import { createProvider } from "./providers";
 import { LocalAudioPlusSettingTab } from "./settingsTab";
 import { AudioLinkMatch } from "./types";
@@ -10,6 +27,7 @@ import {
   extensionSet,
   findAudioLinks,
   findTranscriptBlock,
+  findTranscriptBlockByHash,
   getExtension,
   isExcluded,
   notify,
@@ -21,7 +39,8 @@ export default class LocalAudioPlusPlugin extends Plugin {
   settings!: LocalAudioPlusSettings;
   private modifiedQueue = new UniqueQueue<TFile>();
   private intervalId = 0;
-  private processingFiles = new Set<string>();
+  private processingNotes = new Set<TFile>();
+  private processingAudioHashes = new Set<string>();
 
   async onload(): Promise<void> {
     await this.loadSettings();
@@ -32,7 +51,7 @@ export default class LocalAudioPlusPlugin extends Plugin {
 
     this.addCommand({
       id: "transcribe-current-note",
-      name: "Transcribe local audio in current note",
+      name: t("command.transcribeCurrentNote"),
       callback: () => {
         void this.processActiveNote();
       }
@@ -40,7 +59,7 @@ export default class LocalAudioPlusPlugin extends Plugin {
 
     this.addCommand({
       id: "transcribe-all-notes",
-      name: "Transcribe local audio in all notes",
+      name: t("command.transcribeAllNotes"),
       callback: () => {
         void this.processAllNotes();
       }
@@ -48,16 +67,34 @@ export default class LocalAudioPlusPlugin extends Plugin {
 
     this.addCommand({
       id: "diagnose-current-note",
-      name: "Diagnose local audio in current note",
+      name: t("command.diagnoseCurrentNote"),
       callback: () => {
         void this.diagnoseActiveNote();
       }
     });
 
+    this.registerMarkdownPostProcessor((el, ctx) => {
+      this.addAudioLinkButtons(el, ctx);
+    });
+
+    this.registerEditorExtension(createEditorAudioLinkButtonExtension(this));
+
+    this.registerEvent(
+      this.app.workspace.on("editor-menu", (menu, editor, info) => {
+        this.addEditorAudioMenuItem(menu, editor, info.file);
+      })
+    );
+
+    this.registerEvent(
+      this.app.workspace.on("file-menu", (menu, file, _source, leaf) => {
+        this.addAudioFileMenuItem(menu, file, leaf);
+      })
+    );
+
     this.registerEvent(
       this.app.vault.on("modify", (file) => {
         if (!this.settings.automaticProcessing || !(file instanceof TFile) || file.extension !== "md") return;
-        if (this.processingFiles.has(file.path)) return;
+        if (this.processingNotes.has(file)) return;
         if (this.isPathExcluded(file)) return;
         this.modifiedQueue.push(file, 1);
       })
@@ -78,6 +115,11 @@ export default class LocalAudioPlusPlugin extends Plugin {
     if (this.intervalId) {
       window.clearInterval(this.intervalId);
       this.intervalId = 0;
+    }
+
+    if (!this.settings.automaticProcessing) {
+      this.modifiedQueue.clear();
+      return;
     }
 
     if (this.settings.automaticProcessing && this.settings.processingIntervalSeconds > 0) {
@@ -150,23 +192,52 @@ export default class LocalAudioPlusPlugin extends Plugin {
   }
 
   private async processModifiedQueue(): Promise<void> {
+    if (!this.settings.automaticProcessing) {
+      this.modifiedQueue.clear();
+      return;
+    }
+
     const iteration = this.modifiedQueue.iterationQueue();
     for (const file of iteration) {
+      if (!this.settings.automaticProcessing) {
+        this.modifiedQueue.clear();
+        return;
+      }
       await this.processNote(file, false);
     }
   }
 
   private async processNote(noteFile: TFile, showNoChangeNotice = true): Promise<void> {
-    if (this.processingFiles.has(noteFile.path)) return;
+    if (this.processingNotes.has(noteFile)) return;
     if (noteFile.extension !== "md" || this.isPathExcluded(noteFile)) return;
 
-    this.processingFiles.add(noteFile.path);
+    this.processingNotes.add(noteFile);
     try {
-      const originalContent = await this.app.vault.cachedRead(noteFile);
-      const result = await this.transcribeAudioLinks(noteFile, originalContent);
-      if (result.content !== originalContent) {
-        await this.app.vault.modify(noteFile, result.content);
-        notify(`Inserted ${result.transcribedCount} transcript block(s) in ${noteFile.path}.`, this.settings.showNotifications, 10000);
+      const content = await this.app.vault.cachedRead(noteFile);
+      const report = this.collectAudioTargets(noteFile, content);
+      const provider = createProvider(this.settings.provider);
+
+      if (report.targets.length > 0) {
+        notify(
+          `Found ${report.targets.length} local audio file(s). Using ${provider.name} in the background...`,
+          this.settings.showNotifications,
+          10000
+        );
+      }
+
+      const result = createProcessingSummary();
+      for (const { audioFile } of report.targets) {
+        const status = await this.transcribeAudioTarget(noteFile, audioFile);
+        result[status]++;
+      }
+
+      const changedCount = result.inserted + result.replaced;
+      if (changedCount > 0) {
+        notify(
+          `Updated ${changedCount} transcript block(s) in ${noteFile.path}.`,
+          this.settings.showNotifications,
+          10000
+        );
       } else if (showNoChangeNotice) {
         notify(
           `No new transcript was inserted in ${noteFile.path}.\nUse "Diagnose local audio in current note" for details.`,
@@ -178,37 +249,83 @@ export default class LocalAudioPlusPlugin extends Plugin {
       notify(`Transcription failed for ${noteFile.path}:\n${errorMessage(error)}`, this.settings.showNotifications, 20000);
       console.error(APP_TITLE, error);
     } finally {
-      this.processingFiles.delete(noteFile.path);
+      this.processingNotes.delete(noteFile);
     }
   }
 
-  private async transcribeAudioLinks(
-    noteFile: TFile,
-    originalContent: string
-  ): Promise<{ content: string; transcribedCount: number }> {
-    const provider = createProvider(this.settings.provider);
-    const report = this.collectAudioTargets(noteFile, originalContent);
-    let content = originalContent;
-    let transcribedCount = 0;
-    let searchFrom = 0;
-
-    if (report.targets.length > 0) {
-      notify(
-        `Found ${report.targets.length} local audio file(s). Using ${provider.name}...`,
-        this.settings.showNotifications,
-        10000
-      );
+  private async processSingleAudioFile(noteFile: TFile, audioFile: TFile): Promise<void> {
+    if (noteFile.extension !== "md") {
+      notify("Choose a markdown note before transcribing an audio link.", this.settings.showNotifications, 10000);
+      return;
     }
 
-    for (const { link, audioFile } of report.targets) {
-      const audioData = await this.app.vault.adapter.readBinary(audioFile.path);
-      const audioHash = sha256Hex(audioData);
-      const existingBlock = findTranscriptBlock(content, audioFile.path);
+    if (this.isPathExcluded(noteFile)) return;
 
-      if (existingBlock && (!this.settings.replaceExistingTranscripts || existingBlock.hash === audioHash)) {
-        continue;
-      }
+    if (!this.isSupportedAudioFile(audioFile)) {
+      notify(`${audioFile.path} is not in the enabled audio extension list.`, this.settings.showNotifications, 10000);
+      return;
+    }
 
+    if (this.processingNotes.has(noteFile)) {
+      notify(`A transcription task is already running for ${noteFile.path}.`, this.settings.showNotifications, 10000);
+      return;
+    }
+
+    this.processingNotes.add(noteFile);
+    try {
+      notify(`Transcribing ${audioFile.path} in the background...`, this.settings.showNotifications, 10000);
+      const status = await this.transcribeAudioTarget(noteFile, audioFile);
+      this.notifySingleAudioResult(noteFile, audioFile, status);
+    } catch (error) {
+      notify(`Transcription failed for ${audioFile.path}:\n${errorMessage(error)}`, this.settings.showNotifications, 20000);
+      console.error(APP_TITLE, error);
+    } finally {
+      this.processingNotes.delete(noteFile);
+    }
+  }
+
+  async processAudioLink(noteFile: TFile, rawTarget: string): Promise<void> {
+    const audioFile = this.resolveRawAudioTarget(noteFile, rawTarget);
+    if (!audioFile) {
+      notify(`No supported local audio file was found for ${rawTarget}.`, this.settings.showNotifications, 10000);
+      return;
+    }
+
+    await this.processSingleAudioFile(noteFile, audioFile);
+  }
+
+  isTranscribableAudioLinkTarget(noteFile: TFile, rawTarget: string): boolean {
+    return !this.isPathExcluded(noteFile) && this.resolveRawAudioTarget(noteFile, rawTarget) !== null;
+  }
+
+  private async transcribeAudioTarget(noteFile: TFile, audioFile: TFile): Promise<TranscriptWriteStatus> {
+    const provider = createProvider(this.settings.provider);
+    const preflightContent = await this.app.vault.read(noteFile);
+    const existingBlock = findTranscriptBlock(preflightContent, audioFile.path);
+    const targetStillExists = this.findAudioTargetForFile(noteFile, preflightContent, audioFile) !== null;
+
+    if (existingBlock && !this.settings.replaceExistingTranscripts) {
+      return "skipped";
+    }
+
+    if (!existingBlock && !targetStillExists) {
+      return "missingLink";
+    }
+
+    const audioData = await this.app.vault.adapter.readBinary(audioFile.path);
+    const audioHash = sha256Hex(audioData);
+    const existingHashBlock = existingBlock ?? findTranscriptBlockByHash(preflightContent, audioHash);
+
+    if (existingHashBlock?.hash === audioHash) {
+      return "skipped";
+    }
+
+    if (this.processingAudioHashes.has(audioHash)) {
+      return "alreadyProcessing";
+    }
+
+    this.processingAudioHashes.add(audioHash);
+    try {
       const transcript = await provider.transcribe({
         app: this.app,
         noteFile,
@@ -219,24 +336,50 @@ export default class LocalAudioPlusPlugin extends Plugin {
       });
       const block = formatTranscriptBlock(audioFile, audioHash, transcript, this.settings.transcriptFormatting);
 
-      if (existingBlock && this.settings.replaceExistingTranscripts) {
-        content = `${content.slice(0, existingBlock.start)}${block}${content.slice(existingBlock.end)}`;
-        transcribedCount++;
-        continue;
-      }
-
-      let linkIndex = content.indexOf(link.fullText, searchFrom);
-      if (linkIndex === -1) {
-        linkIndex = content.indexOf(link.fullText);
-      }
-      if (linkIndex === -1) continue;
-      const insertAt = linkIndex + link.fullText.length;
-      content = `${content.slice(0, insertAt)}\n\n${block}${content.slice(insertAt)}`;
-      searchFrom = insertAt + block.length;
-      transcribedCount++;
+      return this.writeTranscriptBlock(noteFile, audioFile, audioHash, block);
+    } finally {
+      this.processingAudioHashes.delete(audioHash);
     }
+  }
 
-    return { content, transcribedCount };
+  private async writeTranscriptBlock(
+    noteFile: TFile,
+    audioFile: TFile,
+    audioHash: string,
+    block: string
+  ): Promise<TranscriptWriteStatus> {
+    let status: TranscriptWriteStatus = "skipped";
+
+    await this.app.vault.process(noteFile, (content) => {
+      const existingBlock = findTranscriptBlock(content, audioFile.path);
+      if (existingBlock) {
+        if (!this.settings.replaceExistingTranscripts || existingBlock.hash === audioHash) {
+          status = "skipped";
+          return content;
+        }
+
+        status = "replaced";
+        return `${content.slice(0, existingBlock.start)}${block}${content.slice(existingBlock.end)}`;
+      }
+
+      const existingHashBlock = findTranscriptBlockByHash(content, audioHash);
+      if (existingHashBlock) {
+        status = "skipped";
+        return content;
+      }
+
+      const target = this.findAudioTargetForFile(noteFile, content, audioFile);
+      if (!target) {
+        status = "missingLink";
+        return content;
+      }
+
+      const insertAt = target.link.index + target.link.fullText.length;
+      status = "inserted";
+      return `${content.slice(0, insertAt)}\n\n${block}${content.slice(insertAt)}`;
+    });
+
+    return status;
   }
 
   private collectAudioTargets(
@@ -288,9 +431,269 @@ export default class LocalAudioPlusPlugin extends Plugin {
     });
   }
 
+  private resolveRawAudioTarget(noteFile: TFile, rawTarget: string): TFile | null {
+    const link: AudioLinkMatch = {
+      fullText: rawTarget,
+      rawTarget,
+      index: 0,
+      isEmbed: false
+    };
+    return this.resolveAudioLink(noteFile, link, extensionSet(this.settings.enabledExtensions));
+  }
+
+  private findAudioTargetForFile(
+    noteFile: TFile,
+    content: string,
+    audioFile: TFile
+  ): { link: AudioLinkMatch; audioFile: TFile } | null {
+    return (
+      this.collectAudioTargets(noteFile, content).targets.find(
+        (target) => target.audioFile === audioFile || target.audioFile.path === audioFile.path
+      ) ?? null
+    );
+  }
+
+  private addAudioLinkButtons(el: HTMLElement, ctx: MarkdownPostProcessorContext): void {
+    const noteFile = this.getMarkdownFileByPath(ctx.sourcePath);
+    if (!noteFile || this.isPathExcluded(noteFile)) return;
+
+    const anchors = Array.from(el.querySelectorAll<HTMLAnchorElement>("a.internal-link, a[data-href], a[href]"));
+    for (const anchor of anchors) {
+      if (anchor.closest(".local-audio-plus-transcript")) continue;
+      if (anchor.nextElementSibling?.classList.contains("local-audio-plus-transcribe-button")) continue;
+
+      const rawTarget = this.getRenderedLinkTarget(anchor);
+      if (!rawTarget || !this.resolveRawAudioTarget(noteFile, rawTarget)) continue;
+
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "clickable-icon local-audio-plus-transcribe-button";
+      button.setAttribute("aria-label", t("action.transcribeAudio"));
+      setIcon(button, "file-audio");
+      setTooltip(button, t("action.transcribeAudio"));
+      button.addEventListener("click", (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        void this.processAudioLink(noteFile, rawTarget);
+      });
+      anchor.insertAdjacentElement("afterend", button);
+    }
+  }
+
+  private addEditorAudioMenuItem(menu: Menu, editor: Editor, noteFile: TFile | null): void {
+    if (!noteFile || noteFile.extension !== "md" || this.isPathExcluded(noteFile)) return;
+
+    const target = this.findAudioTargetAtEditorCursor(noteFile, editor);
+    if (!target) return;
+
+    menu.addItem((item) => {
+      item
+        .setTitle(t("menu.transcribeThisAudio"))
+        .setIcon("file-audio")
+        .onClick(() => {
+          void this.processSingleAudioFile(noteFile, target.audioFile);
+        });
+    });
+  }
+
+  private addAudioFileMenuItem(menu: Menu, file: TAbstractFile, leaf?: WorkspaceLeaf): void {
+    if (!(file instanceof TFile) || !this.isSupportedAudioFile(file)) return;
+
+    const noteFile = this.getMarkdownFileFromLeaf(leaf) ?? this.app.workspace.getActiveViewOfType(MarkdownView)?.file ?? null;
+    if (!noteFile || noteFile.extension !== "md" || this.isPathExcluded(noteFile)) return;
+
+    menu.addItem((item) => {
+      item
+        .setTitle(t("menu.transcribeThisAudioInCurrentNote"))
+        .setIcon("file-audio")
+        .onClick(() => {
+          void this.processSingleAudioFile(noteFile, file);
+        });
+    });
+  }
+
+  private findAudioTargetAtEditorCursor(
+    noteFile: TFile,
+    editor: Editor
+  ): { link: AudioLinkMatch; audioFile: TFile } | null {
+    const content = editor.getValue();
+    const cursorOffset = editor.posToOffset(editor.getCursor());
+    const enabledExtensions = extensionSet(this.settings.enabledExtensions);
+
+    for (const link of findAudioLinks(content)) {
+      const start = link.index;
+      const end = link.index + link.fullText.length;
+      if (cursorOffset < start || cursorOffset > end) continue;
+
+      const audioFile = this.resolveAudioLink(noteFile, link, enabledExtensions);
+      if (audioFile) {
+        return { link, audioFile };
+      }
+    }
+
+    return null;
+  }
+
+  private getRenderedLinkTarget(anchor: HTMLAnchorElement): string | null {
+    const dataHref = anchor.getAttribute("data-href");
+    if (dataHref) return dataHref;
+
+    const href = anchor.getAttribute("href");
+    if (!href) return null;
+
+    try {
+      const url = new URL(href);
+      const fileParam = url.searchParams.get("file");
+      if (fileParam) return fileParam;
+      if (url.protocol === "http:" || url.protocol === "https:" || url.protocol === "file:") return href;
+      return decodeURIComponent(url.pathname.replace(/^\/+/, ""));
+    } catch {
+      return href;
+    }
+  }
+
+  private getMarkdownFileByPath(path: string): TFile | null {
+    const file = this.app.vault.getAbstractFileByPath(path);
+    return file instanceof TFile && file.extension === "md" ? file : null;
+  }
+
+  private getMarkdownFileFromLeaf(leaf?: WorkspaceLeaf): TFile | null {
+    const view = leaf?.view;
+    return view instanceof MarkdownView ? view.file : null;
+  }
+
+  private isSupportedAudioFile(file: TFile): boolean {
+    return extensionSet(this.settings.enabledExtensions).has(file.extension.toLowerCase());
+  }
+
+  private notifySingleAudioResult(noteFile: TFile, audioFile: TFile, status: TranscriptWriteStatus): void {
+    if (status === "inserted") {
+      notify(`Inserted transcript for ${audioFile.name} in ${noteFile.path}.`, this.settings.showNotifications, 10000);
+      return;
+    }
+
+    if (status === "replaced") {
+      notify(`Replaced transcript for ${audioFile.name} in ${noteFile.path}.`, this.settings.showNotifications, 10000);
+      return;
+    }
+
+    if (status === "missingLink") {
+      notify(
+        `Finished transcribing ${audioFile.name}, but the audio link was no longer found in ${noteFile.path}.`,
+        this.settings.showNotifications,
+        15000
+      );
+      return;
+    }
+
+    if (status === "alreadyProcessing") {
+      notify(`${audioFile.name} is already being transcribed.`, this.settings.showNotifications, 10000);
+      return;
+    }
+
+    notify(`No transcript update was needed for ${audioFile.name}.`, this.settings.showNotifications, 10000);
+  }
+
   private isPathExcluded(file: TFile): boolean {
     return isExcluded(file.parent?.path ?? "", this.settings.excludedFolders);
   }
+}
+
+function createEditorAudioLinkButtonExtension(plugin: LocalAudioPlusPlugin) {
+  return ViewPlugin.fromClass(
+    class {
+      decorations: DecorationSet;
+
+      constructor(view: EditorView) {
+        this.decorations = buildEditorAudioLinkButtonDecorations(plugin, view);
+      }
+
+      update(update: ViewUpdate): void {
+        if (update.docChanged || update.viewportChanged) {
+          this.decorations = buildEditorAudioLinkButtonDecorations(plugin, update.view);
+        }
+      }
+    },
+    {
+      decorations: (value) => value.decorations
+    }
+  );
+}
+
+function buildEditorAudioLinkButtonDecorations(plugin: LocalAudioPlusPlugin, view: EditorView): DecorationSet {
+  const livePreview = view.state.field(editorLivePreviewField, false);
+  const info = view.state.field(editorInfoField, false);
+  const noteFile = info?.file;
+  if (!livePreview || !noteFile || noteFile.extension !== "md") {
+    return Decoration.none;
+  }
+
+  const builder = new RangeSetBuilder<Decoration>();
+  for (const range of view.visibleRanges) {
+    const text = view.state.doc.sliceString(range.from, range.to);
+    for (const link of findAudioLinks(text)) {
+      if (!plugin.isTranscribableAudioLinkTarget(noteFile, link.rawTarget)) continue;
+      builder.add(
+        range.from + link.index + link.fullText.length,
+        range.from + link.index + link.fullText.length,
+        Decoration.widget({
+          widget: new AudioLinkButtonWidget(plugin, noteFile, link.rawTarget),
+          side: 1
+        })
+      );
+    }
+  }
+
+  return builder.finish();
+}
+
+class AudioLinkButtonWidget extends WidgetType {
+  constructor(
+    private readonly plugin: LocalAudioPlusPlugin,
+    private readonly noteFile: TFile,
+    private readonly rawTarget: string
+  ) {
+    super();
+  }
+
+  eq(widget: WidgetType): boolean {
+    return (
+      widget instanceof AudioLinkButtonWidget &&
+      widget.noteFile.path === this.noteFile.path &&
+      widget.rawTarget === this.rawTarget
+    );
+  }
+
+  toDOM(): HTMLElement {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "clickable-icon local-audio-plus-transcribe-button local-audio-plus-editor-button";
+    button.setAttribute("aria-label", t("action.transcribeAudio"));
+    setIcon(button, "file-audio");
+    setTooltip(button, t("action.transcribeAudio"));
+    button.addEventListener("mousedown", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+    });
+    button.addEventListener("click", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      void this.plugin.processAudioLink(this.noteFile, this.rawTarget);
+    });
+    return button;
+  }
+}
+
+type TranscriptWriteStatus = "inserted" | "replaced" | "skipped" | "missingLink" | "alreadyProcessing";
+
+function createProcessingSummary(): Record<TranscriptWriteStatus, number> {
+  return {
+    inserted: 0,
+    replaced: 0,
+    skipped: 0,
+    missingLink: 0,
+    alreadyProcessing: 0
+  };
 }
 
 function mergeSettings(data: unknown): LocalAudioPlusSettings {

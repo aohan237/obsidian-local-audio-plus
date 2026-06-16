@@ -6,3 +6,24 @@
   border-left: 3px solid var(--interactive-accent);
   padding-left: 0.75rem;
 }
+
+.local-audio-plus-transcribe-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--icon-size);
+  height: var(--icon-size);
+  margin-inline-start: 0.25em;
+  padding: 0;
+  color: var(--text-muted);
+  vertical-align: text-bottom;
+}
+
+.local-audio-plus-transcribe-button:hover {
+  color: var(--text-normal);
+}
+
+.local-audio-plus-editor-button {
+  margin-inline-start: 0.15em;
+  vertical-align: middle;
+}

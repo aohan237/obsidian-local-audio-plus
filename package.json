@@ -1,6 +1,6 @@
 {
   "name": "local-audio-plus",
-  "version": "1.0.4",
+  "version": "1.1.0",
   "description": "Transcribe local audio files referenced in notes using OpenAI, Tencent Cloud ASR, or iFlytek ASR.",
   "main": "build/main.js",
   "scripts": {

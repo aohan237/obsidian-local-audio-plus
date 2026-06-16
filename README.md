@@ -1,6 +1,8 @@
 # Local Audio Plus
 
-Obsidian desktop plugin for scanning local audio links in notes and inserting transcripts.
+Obsidian desktop plugin for transcribing local audio links in notes and inserting transcripts.
+
+Automatic scanning is off by default. Opening, saving, or modifying notes will not start transcription unless the user enables **Automatic processing** in the plugin settings. Users can always start transcription manually from the audio link button, the audio link context menu, the ribbon button, or the command palette.
 
 Supported providers:
 
